@@ -1,4 +1,7 @@
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import edu.rit.pj.*;
+import edu.rit.pj.reduction.*;
 
 public class LavaMain {
 	public static Env global_env;
@@ -6,6 +9,8 @@ public class LavaMain {
 	public static int c2e = 0;
 	
 	public static boolean debug = false;
+
+	public static ConcurrentLinkedQueue<EvalPair> thingsToDo;
 	
 	public static Object runOp(Env e, String opName, Object... args) {
 		Lambda op = (Lambda)e.get(opName);
@@ -62,82 +67,197 @@ public class LavaMain {
 		}
 	}
 	
-	public static Object eval(Object exp, Env e) {
+	public static EvalPair eval(Object exp, Env ee) {
 		++c2e;
 		
+		final Env e = ee;
 		if(exp instanceof String) {
-			return e.find((String)exp).get(exp);
+			final Object fExp = exp;
+			Lambda l = new Lambda()
+			{
+				public Object exec(Object... args)
+				{
+					return e.find((String)fExp).get(fExp);
+				}
+			};
+			EvalPair pair = new EvalPair(l);
+			thingsToDo.add(pair);
+			return pair;
 		} else if(!(exp instanceof LinkedList<?>)) {
-			return exp;
+			final Object fExp = exp;
+			Lambda l = new Lambda()
+			{
+				public Object exec(Object... args)
+				{
+					return fExp;
+				}
+			};
+			EvalPair pair = new EvalPair(l);
+			thingsToDo.add(pair);
+			return pair;
 		}else {
 			LavaList llexp = (LavaList)exp;
 			Object car = llexp.get(0);
 			
 			if(car.equals("insofaras")) {
-				Object test = llexp.get(1);
-				Object conseq = llexp.get(2);
-				Object alt = llexp.get(3);
+				final Object test = llexp.get(1);
+				final Object conseq = llexp.get(2);
+				final Object alt = llexp.get(3);
+
+				Lambda testL = new Lambda()
+				{
+					public Object exec(Object... args)
+					{
+						return eval(test, e);
+					}
+				};
+	
+				final EvalPair testPair = new EvalPair(testL);
+				thingsToDo.add(testPair);
+
+				Lambda l = new Lambda()
+				{
+					public Object exec(Object... args)
+					{
+						Object result = testPair.result;
+						if(result instanceof Integer && (Integer)result > 0) {
+							return eval(conseq, e);
+						} else {
+							return eval(alt, e);
+						}
+					}
+				};
+				EvalPair pair = new EvalPair(l);
+				pair.addTodoFirst(testPair);
+				thingsToDo.add(pair);
+				return pair;
 				
-				Object result = eval(test, e);
-				
-				if(result instanceof Integer && (Integer)result > 0) {
-					return eval(conseq, e);
-				} else {
-					return eval(alt, e);
-				}
 			} else if(car.equals("you-folks")) {
-				LavaList literal = new LavaList();
+				final LavaList literal = new LavaList();
 				
 				for(int i = 1; i < llexp.size(); ++i) {
 					literal.add(llexp.get(i));
 				}
 				
-				return literal;
+				Lambda l = new Lambda()
+				{
+					public Object exec(Object... args)
+					{
+						return literal;
+					}
+				};
+
+				EvalPair pair = new EvalPair(l);
+				thingsToDo.add(pair);
+				return pair;
 			} else if(car.equals("yknow")) {
-				Object var = llexp.get(1);
-				Object varExp = llexp.get(2);
+				final Object var = llexp.get(1);
+				final Object varExp = llexp.get(2);
+
+				Lambda el = new Lambda()
+				{
+					public Object exec(Object... args)
+					{
+						return eval(varExp, e);
+					}
+				};
+
+				final EvalPair elp = new EvalPair(el);
+				thingsToDo.add(elp);
 				
-				e.put((String)var, eval(varExp, e));
+				Lambda l = new Lambda()
+				{
+					public Object exec(Object... args)
+					{
+						e.put((String)var, elp.result);
+						return null;
+					}
+				};
+
+				EvalPair pair = new EvalPair(l);
+				pair.addTodoFirst(elp);
+				thingsToDo.add(pair);
+				return pair;
 			} else if(car.equals("bring-me-back-something-good")) {
-				LavaList lambVars = (LavaList)llexp.get(1);
-				Object lambExp = llexp.get(2);
+				final LavaList lambVars = (LavaList)llexp.get(1);
+				final Object lambExp = llexp.get(2);
 				
-				Lambda l = new Lambda(lambVars, lambExp, e) {
+				final Lambda l = new Lambda(lambVars, lambExp, e) {
 					public Object exec(Object... args) {
-						Object[] lambVarsObj = ((LavaList)this.passData[0]).toArray();
-						String[] lambVars = new String[lambVarsObj.length];
+						final Object[] lambVarsObj = ((LavaList)this.passData[0]).toArray();
+						final String[] lambVars = new String[lambVarsObj.length];
 						for(int i = 0; i < lambVarsObj.length; ++i) {
 							lambVars[i] = (String)lambVarsObj[i];
 						}
-						Object lambExp = passData[1];
-						Env outerEnv = (Env)passData[2];
+						final Object lambExp = passData[1];
+						final Env outerEnv = (Env)passData[2];
+						final Object[] hoijgjio = args;
 						
-						return eval(lambExp, new Env(lambVars, args, outerEnv));
+						Lambda l = new Lambda()
+						{
+							public Object exec(Object... crap)
+							{
+								return eval(lambExp, new Env(lambVars, hoijgjio, outerEnv));
+							}
+						};
+						EvalPair pair = new EvalPair(l);
+						thingsToDo.add(pair);
+						return pair;
 					}
 				};
-				
-				return l;
-			} else {
-				LavaList evallexp = new LavaList();
-				Object[] args = new Object[llexp.size() - 1];
-				
-				for(int i = 0; i < llexp.size(); ++i) {
-					Object o = llexp.get(i);
-					Object evalO = eval(o, e);
-					
-					evallexp.add(evalO);
-					
-					if(i > 0) {
-						args[i - 1] = evalO;
+
+				Lambda ll = new Lambda()
+				{
+					public Object exec(Object... args)
+					{
+						return l;
 					}
+				};
+				EvalPair pair = new EvalPair(ll);
+				thingsToDo.add(pair);
+				return pair;
+			}
+			else
+			{
+				final LinkedList<EvalPair> stuffs = new LinkedList<EvalPair>();
+				
+				for(int i = 0; i < llexp.size(); ++i)
+				{
+					final Object o = llexp.get(i);
+					final Env noE = e; // heh heh heh...e e e
+					final int tempI = i;
+
+					Lambda l = new Lambda()
+					{
+						public Object exec(Object... crap)
+						{
+							return eval(o, noE);
+						}
+					};
+					EvalPair pair = new EvalPair(l);
+					thingsToDo.add(pair);
+					stuffs.add(pair);
 				}
 				
-				Lambda proc = (Lambda)evallexp.get(0);
-				return proc.exec(args);
+				Lambda bfokewm = new Lambda()
+				{
+					public Object exec(Object... args)
+					{
+						Object[] argsc = new Object[stuffs.size() - 1];
+						for (int i=1;i<stuffs.size();++i)
+							argsc[i-1]=stuffs.get(i).result;
+						
+						Lambda proc = (Lambda)stuffs.get(0).result;
+						return proc.exec(argsc);
+					}
+				};
+				EvalPair wholeThing = new EvalPair(bfokewm);
+				for (EvalPair arg : stuffs)
+					wholeThing.addTodoFirst(arg);
+				thingsToDo.add(wholeThing);
+				return wholeThing;
 			}
 		}
-		
-		return null;
 	}
 	
 	public static Object eval(Object exp) {
@@ -152,7 +272,7 @@ public class LavaMain {
 		return parseEval(sexp, global_env);
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		String[] vals = {
 				"+",
 				"-",
@@ -210,18 +330,60 @@ public class LavaMain {
 				break;
 			}
 			
-			Object sexp = parseSexp(tokenize(line));
+			final Object sexp = parseSexp(tokenize(line));
 			
 			c2e = 0;
 			
 			long time = -System.currentTimeMillis();
+
+			Lambda l = new Lambda()
+			{
+				public Object exec(Object... args)
+				{
+					return eval(sexp, global_env);
+				}
+			};
 			
-			Object result = eval(sexp);
+			EvalPair resultPair = new EvalPair(l);
+			thingsToDo = new ConcurrentLinkedQueue<EvalPair>();
+			thingsToDo.add(resultPair);
+			final SharedInteger done = new SharedInteger(0);
+			new ParallelTeam().execute(new ParallelRegion()
+			{
+				public void run()
+				{
+					boolean first = true;
+					while (done.get() < getThreadCount())
+					{
+						if (first)
+							first = false;
+						else
+							done.getAndDecrement();
+
+						EvalPair pair;
+						while ((pair = thingsToDo.poll()) != null)
+						{
+							if (pair.checkReady())
+							{
+								pair.execute();
+							}
+							else
+							{
+								thingsToDo.add(pair);
+							}
+						}
+						done.getAndIncrement();
+					}
+				}
+			});
 			
 			time += System.currentTimeMillis();
+
+			resultPair.isDone();
+			Object result = resultPair.result;
 			
 			if(result != null) {
-				System.out.println(result);
+				System.out.println(resultPair.result);
 			}
 			
 			if(debug) {
@@ -233,4 +395,76 @@ public class LavaMain {
 		scan.close();
 	}
 
+}
+
+class EvalPair
+{
+	private Lambda toExecute;
+	private Lambda done;
+	private LinkedList<EvalPair> todoFirst;
+	public Object result;
+
+	public EvalPair(Lambda toExecute)
+	{
+		this.toExecute = toExecute;
+		todoFirst = new LinkedList<EvalPair>();
+		done = new Lambda()
+		{
+			public Object exec(Object... args)
+			{
+				return false;
+			}
+		};
+	}
+
+	public void addTodoFirst(EvalPair pair)
+	{
+		todoFirst.add(pair);
+	}
+
+	public void execute()
+	{
+		result = toExecute.exec();
+		if (result instanceof EvalPair)
+			done = new Lambda()
+			{
+				public Object exec(Object... args)
+				{
+					if (((EvalPair)result).isDone())
+					{
+						result = ((EvalPair)result).result;
+						done = new Lambda()
+						{
+							public Object exec(Object... args)
+							{
+								return true;
+							}
+						};
+						return true;
+					}
+					return false;
+				}
+			};
+		else
+			done = new Lambda()
+			{
+				public Object exec(Object... args)
+				{
+					return true;
+				}
+			};
+	}
+
+	public boolean isDone()
+	{
+		return (Boolean)(done.exec());
+	}
+
+	public boolean checkReady()
+	{
+		for (EvalPair p : todoFirst)
+			if (!p.isDone())
+				return false;
+		return true;
+	}
 }
