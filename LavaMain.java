@@ -273,6 +273,8 @@ public class LavaMain {
 	}
 
 	public static void main(String[] args) throws Exception {
+		Comm.init(args);
+		
 		String[] vals = {
 				"+",
 				"-",
