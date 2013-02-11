@@ -8,7 +8,7 @@ public class LavaMain {
 	
 	public static int c2e = 0;
 	
-	public static boolean debug = false;
+	public static boolean debug = true;
 
 	public static ConcurrentLinkedQueue<EvalJob> thingsToDo;
 	
@@ -77,7 +77,13 @@ public class LavaMain {
 			{
 				public Object exec(Object... args)
 				{
-					return e.find((String)fExp).get(fExp);
+					Env target = e.find((String)fExp);
+					if(target != null) {
+						return target.get(fExp);
+					} else {
+						System.err.printf("No.\n\t'%s' is not a symbol we can resolve.\n", fExp);
+						return null;
+					}
 				}
 			};
 			EvalJob pair = new EvalJob(l);
@@ -97,7 +103,7 @@ public class LavaMain {
 			return pair;
 		}else {
 			LavaList llexp = (LavaList)exp;
-			Object car = llexp.get(0);
+			final Object car = llexp.get(0);
 			
 			if(car.equals("insofaras")) {
 				final Object test = llexp.get(1);
@@ -247,8 +253,18 @@ public class LavaMain {
 						for (int i=1;i<stuffs.size();++i)
 							argsc[i-1]=stuffs.get(i).result;
 						
+						if(!(stuffs.get(0).result instanceof Lambda)) {
+							System.err.printf("No.\n\t'%s' is not a function we can apply.\n", car);
+							return null;
+						}
+						
 						Lambda proc = (Lambda)stuffs.get(0).result;
-						return proc.exec(argsc);
+						
+						if(proc != null) {
+							return proc.exec(argsc);
+						} else {
+							return null;
+						}
 					}
 				};
 				EvalJob wholeThing = new EvalJob(bfokewm);
@@ -326,7 +342,7 @@ public class LavaMain {
 		Scanner scan = new Scanner(System.in);
 		
 		for(;;) {
-			System.out.print("$ ");
+			System.out.print("proftalk $ ");
 			String line = scan.nextLine();
 			if(line.equals("quit")) {
 				break;
