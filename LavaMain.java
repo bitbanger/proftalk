@@ -33,14 +33,14 @@ public class LavaMain {
 	}
 	
 	public static Object parseSexp(LinkedList<String> tokens) {
-		String token = tokens.pop();
+		String token = tokens.removeFirst();
 		
 		if(token.equals("(")) {
 			LavaList sexp = new LavaList();
 			while(!(tokens.get(0).equals(")"))) {
 				sexp.add(parseSexp(tokens));
 			}
-			tokens.pop();
+			tokens.removeFirst();
 			return sexp;
 		} else if(token.equals(")")) {
 			System.err.println("Unexpected )");
