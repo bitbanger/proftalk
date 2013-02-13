@@ -199,40 +199,24 @@ public class LavaMain {
 			}
 			else
 			{
-				final LinkedList<EvalJob> stuffs = new LinkedList<EvalJob>();
+				final EvalJob stuffs[] = new EvalJob[llexp.size() - 1];
 				
-				for(int i = 0; i < llexp.size(); ++i)
-				{
-					final Object o = llexp.get(i);
-					final Env noE = e; // heh heh heh...e e e
-					final int tempI = i;
-
-					Lambda l = new Lambda()
-					{
-						public Object exec(Object... crap)
-						{
-							return peval(o, noE);
-						}
-					};
-					EvalJob pair = new EvalJob(l);
-					thingsToDo.add(pair);
-					stuffs.add(pair);
-				}
+				final Object fun = llexp.get(0);
 				
 				Lambda bfokewm = new Lambda()
 				{
 					public Object exec(Object... args)
 					{
-						Object[] argsc = new Object[stuffs.size() - 1];
-						for (int i=1;i<stuffs.size();++i)
-							argsc[i-1]=stuffs.get(i).result;
-						
-						if(!(stuffs.get(0).result instanceof Lambda)) {
+						Object argsc[] = new Object[stuffs.length];
+						for (int i=0;i<stuffs.length;++i)
+							argsc[i] = stuffs[i].result;
+						Object tProc = eval(fun, e);
+						if(!(tProc instanceof Lambda)) {
 							System.err.printf("No.\n\t'%s' is not a function we can apply.\n", car);
 							return null;
 						}
 						
-						Lambda proc = (Lambda)stuffs.get(0).result;
+						Lambda proc = (Lambda)tProc;
 						
 						if(proc != null) {
 							return proc.exec(argsc);
@@ -242,8 +226,23 @@ public class LavaMain {
 					}
 				};
 				EvalJob wholeThing = new EvalJob(bfokewm);
-				for (EvalJob arg : stuffs)
-					wholeThing.addTodoFirst(arg);
+				for(int i = 1; i < llexp.size(); ++i)
+				{
+					final Object o = llexp.get(i);
+					final int tempI = i;
+
+					Lambda l = new Lambda()
+					{
+						public Object exec(Object... crap)
+						{
+							return peval(o, e);
+						}
+					};
+					EvalJob pair = new EvalJob(l);
+					thingsToDo.add(pair);
+					stuffs[i-1] = pair;
+					wholeThing.addTodoFirst(pair);
+				}
 				thingsToDo.add(wholeThing);
 				return wholeThing;
 			}
@@ -333,7 +332,7 @@ public class LavaMain {
 	}
 
 	public static Object peval(Object exp) {
-		return eval(exp, global_env);
+		return peval(exp, global_env);
 	}
 	
 	public static Object parseEval(String sexp, Env e) {
@@ -439,7 +438,6 @@ public class LavaMain {
 						{
 							if (pair.checkReady())
 							{
-								//System.out.println(getThreadIndex());
 								pair.execute();
 							}
 							else
