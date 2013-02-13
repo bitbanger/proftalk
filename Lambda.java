@@ -11,5 +11,5 @@ public abstract class Lambda {
 		this.passData = passData;
 	}
 	
-	public abstract Object exec(Object... args);
+	public abstract Object exec(Object... args) throws Exception;
 }

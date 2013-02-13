@@ -120,4 +120,20 @@ public class GlobalEnvOps {
 			}
 		}
 	};
+	
+	public static Lambda length = new Lambda() {
+		public Object exec(Object... args) {
+			return ((LavaList)args[0]).size();
+		}
+	};
+	
+	public static Lambda isnull = new Lambda() {
+		public Object exec(Object... args) {
+			if(((LavaList)args[0]).size() == 0) {
+				return 1;
+			} else {
+				return 0;
+			}
+		}
+	};
 }

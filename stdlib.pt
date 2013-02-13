@@ -1,0 +1,27 @@
+(yknow remove (bring-me-back-something-good (x lst) (insofaras (null? lst) (you-folks) (insofaras (= x (car lst)) (remove x (come-from-behind lst)) (cons (car lst) (remove x (come-from-behind lst)))))))
+
+(yknow fib (bring-me-back-something-good (n) (insofaras (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))
+
+(yknow map
+	(bring-me-back-something-good (f lst)
+		(insofaras
+			(null? lst) (you-folks)
+			(cons (f lst) (map f (come-from-behind lst))))))
+
+(yknow remove (bring-me-back-something-good (x lst) (insofaras (null? lst) (you-folks) (insofaras (= x (car lst)) (remove x (come-from-behind lst)) (cons (car lst) (remove x (come-from-behind lst)))))))
+(yknow map (bring-me-back-something-good (f lst) (insofaras (null? lst) (you-folks) (cons (f (car lst)) (map f (come-from-behind lst))))))
+(yknow fib (bring-me-back-something-good (n) (insofaras (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))
+(yknow append (bring-me-back-something-good (lst1 lst2) (insofaras (null? lst1) lst2 (cons (car lst1) (append (come-from-behind lst1) lst2)))))
+(yknow permute (bring-me-back-something-good (lst) (insofaras (= (length lst) 1) (you-folks lst) (apply append (map (bring-me-back-something-good (i) (map (bring-me-back-something-good (j) (cons i j)) (permute (remove i lst)))) lst)))))
+
+(yknow append
+	(bring-me-back-something-good (lst1 lst2)
+		(insofaras (null? lst1) lst2
+			(cons (car lst1) (append (come-from-behind lst1) lst2)))))
+
+(yknow permute
+	(bring-me-back-something-good (lst)
+		(insofaras
+			(= (length lst) 1) (you-folks lst)
+			(apply append (map (bring-me-back-something-good (i) (map (bring-me-back-something-good (j) (cons i j)) (permute (remove i lst)))) lst)))))
+		
