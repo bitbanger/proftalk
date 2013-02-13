@@ -67,40 +67,20 @@ public class LavaMain {
 		}
 	}
 	
-	public static EvalJob eval(Object exp, Env ee) {
+	public static Object peval(Object exp, Env ee) {
 		++c2e;
 		
 		final Env e = ee;
 		if(exp instanceof String) {
-			final Object fExp = exp;
-			Lambda l = new Lambda()
-			{
-				public Object exec(Object... args)
-				{
-					Env target = e.find((String)fExp);
-					if(target != null) {
-						return target.get(fExp);
-					} else {
-						System.err.printf("No.\n\t'%s' is not a symbol we can resolve.\n", fExp);
-						return null;
-					}
-				}
-			};
-			EvalJob pair = new EvalJob(l);
-			thingsToDo.add(pair);
-			return pair;
+			Env target = e.find((String)exp);
+			if(target != null) {
+				return target.get(exp);
+			} else {
+				System.err.printf("No.\n\t'%s' is not a symbol we can resolve.\n", exp);
+				return null;
+			}
 		} else if(!(exp instanceof LinkedList<?>)) {
-			final Object fExp = exp;
-			Lambda l = new Lambda()
-			{
-				public Object exec(Object... args)
-				{
-					return fExp;
-				}
-			};
-			EvalJob pair = new EvalJob(l);
-			thingsToDo.add(pair);
-			return pair;
+			return exp;
 		}else {
 			LavaList llexp = (LavaList)exp;
 			final Object car = llexp.get(0);
@@ -114,7 +94,7 @@ public class LavaMain {
 				{
 					public Object exec(Object... args)
 					{
-						return eval(test, e);
+						return peval(test, e);
 					}
 				};
 	
@@ -127,9 +107,9 @@ public class LavaMain {
 					{
 						Object result = testPair.result;
 						if(result instanceof Integer && (Integer)result > 0) {
-							return eval(conseq, e);
+							return peval(conseq, e);
 						} else {
-							return eval(alt, e);
+							return peval(alt, e);
 						}
 					}
 				};
@@ -145,17 +125,7 @@ public class LavaMain {
 					literal.add(llexp.get(i));
 				}
 				
-				Lambda l = new Lambda()
-				{
-					public Object exec(Object... args)
-					{
-						return literal;
-					}
-				};
-
-				EvalJob pair = new EvalJob(l);
-				thingsToDo.add(pair);
-				return pair;
+				return literal;
 			} else if(car.equals("yknow")) {
 				final Object var = llexp.get(1);
 				final Object varExp = llexp.get(2);
@@ -164,7 +134,7 @@ public class LavaMain {
 				{
 					public Object exec(Object... args)
 					{
-						return eval(varExp, e);
+						return peval(varExp, e);
 					}
 				};
 
@@ -187,8 +157,14 @@ public class LavaMain {
 			} else if(car.equals("bring-me-back-something-good")) {
 				final LavaList lambVars = (LavaList)llexp.get(1);
 				final Object lambExp = llexp.get(2);
-				
-				final Lambda l = new Lambda(lambVars, lambExp, e) {
+				Object shouldParallelTemp;
+				if (llexp.size() > 3)
+					shouldParallelTemp = llexp.get(3);
+				else
+					shouldParallelTemp = null;
+				final Object shouldParallel = shouldParallelTemp;
+				final Lambda l = new Lambda(lambVars, lambExp, e)
+				{
 					public Object exec(Object... args) {
 						final Object[] lambVarsObj = ((LavaList)this.passData[0]).toArray();
 						final String[] lambVars = new String[lambVarsObj.length];
@@ -198,30 +174,28 @@ public class LavaMain {
 						final Object lambExp = passData[1];
 						final Env outerEnv = (Env)passData[2];
 						final Object[] hoijgjio = args;
-						
-						Lambda l = new Lambda()
+
+						if (shouldParallel != null && (Integer)eval(shouldParallel, new Env(lambVars, hoijgjio, outerEnv)) == 1)
 						{
-							public Object exec(Object... crap)
+							Lambda l = new Lambda()
 							{
-								return eval(lambExp, new Env(lambVars, hoijgjio, outerEnv));
-							}
-						};
-						EvalJob pair = new EvalJob(l);
-						thingsToDo.add(pair);
-						return pair;
+								public Object exec(Object... crap)
+								{
+									return peval(lambExp, new Env(lambVars, hoijgjio, outerEnv));
+								}
+							};
+							EvalJob pair = new EvalJob(l);
+							thingsToDo.add(pair);
+							return pair;
+						}
+						else
+						{
+							return eval(lambExp, new Env(lambVars, hoijgjio, outerEnv));
+						}
 					}
 				};
 
-				Lambda ll = new Lambda()
-				{
-					public Object exec(Object... args)
-					{
-						return l;
-					}
-				};
-				EvalJob pair = new EvalJob(ll);
-				thingsToDo.add(pair);
-				return pair;
+				return l;
 			}
 			else
 			{
@@ -237,7 +211,7 @@ public class LavaMain {
 					{
 						public Object exec(Object... crap)
 						{
-							return eval(o, noE);
+							return peval(o, noE);
 						}
 					};
 					EvalJob pair = new EvalJob(l);
@@ -275,8 +249,90 @@ public class LavaMain {
 			}
 		}
 	}
+
+	public static Object eval(Object exp, Env e) {
+		++c2e;
+		
+		if(exp instanceof String) {
+			return e.find((String)exp).get(exp);
+		} else if(!(exp instanceof LinkedList<?>)) {
+			return exp;
+		}else {
+			LavaList llexp = (LavaList)exp;
+			Object car = llexp.get(0);
+			
+			if(car.equals("insofaras")) {
+				Object test = llexp.get(1);
+				Object conseq = llexp.get(2);
+				Object alt = llexp.get(3);
+				
+				Object result = eval(test, e);
+				
+				if(result instanceof Integer && (Integer)result > 0) {
+					return eval(conseq, e);
+				} else {
+					return eval(alt, e);
+				}
+			} else if(car.equals("you-folks")) {
+				LavaList literal = new LavaList();
+				
+				for(int i = 1; i < llexp.size(); ++i) {
+					literal.add(llexp.get(i));
+				}
+				
+				return literal;
+			} else if(car.equals("yknow")) {
+				Object var = llexp.get(1);
+				Object varExp = llexp.get(2);
+				
+				e.put((String)var, eval(varExp, e));
+			} else if(car.equals("bring-me-back-something-good")) {
+				LavaList lambVars = (LavaList)llexp.get(1);
+				Object lambExp = llexp.get(2);
+				
+				Lambda l = new Lambda(lambVars, lambExp, e) {
+					public Object exec(Object... args) {
+						Object[] lambVarsObj = ((LavaList)this.passData[0]).toArray();
+						String[] lambVars = new String[lambVarsObj.length];
+						for(int i = 0; i < lambVarsObj.length; ++i) {
+							lambVars[i] = (String)lambVarsObj[i];
+						}
+						Object lambExp = passData[1];
+						Env outerEnv = (Env)passData[2];
+						
+						return eval(lambExp, new Env(lambVars, args, outerEnv));
+					}
+				};
+				
+				return l;
+			} else {
+				LavaList evallexp = new LavaList();
+				Object[] args = new Object[llexp.size() - 1];
+				
+				for(int i = 0; i < llexp.size(); ++i) {
+					Object o = llexp.get(i);
+					Object evalO = eval(o, e);
+					
+					evallexp.add(evalO);
+					
+					if(i > 0) {
+						args[i - 1] = evalO;
+					}
+				}
+				
+				Lambda proc = (Lambda)evallexp.get(0);
+				return proc.exec(args);
+			}
+		}
+		
+		return null;
+	}
 	
 	public static Object eval(Object exp) {
+		return eval(exp, global_env);
+	}
+
+	public static Object peval(Object exp) {
 		return eval(exp, global_env);
 	}
 	
@@ -358,7 +414,7 @@ public class LavaMain {
 			{
 				public Object exec(Object... args)
 				{
-					return eval(sexp, global_env);
+					return peval(sexp, global_env);
 				}
 			};
 			
@@ -383,6 +439,7 @@ public class LavaMain {
 						{
 							if (pair.checkReady())
 							{
+								//System.out.println(getThreadIndex());
 								pair.execute();
 							}
 							else
