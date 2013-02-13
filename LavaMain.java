@@ -6,7 +6,7 @@ public class LavaMain {
 	
 	public static int c2e = 0;
 	
-	public static boolean debug = false;
+	public static boolean debug = true;
 	
 	public static Object runOp(Env e, String opName, Object... args) {
 		Lambda op = (Lambda)e.get(opName);
