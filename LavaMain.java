@@ -26,8 +26,8 @@ public class LavaMain {
 		}
 	}
 	
-	public static LinkedList<String> tokenize(String str) {
-		LinkedList<String> tokens = new LinkedList<String>();
+	public static ArrayList<String> tokenize(String str) {
+		ArrayList<String> tokens = new ArrayList<String>();
 		String[] toks = str.replaceAll("\\(", " ( ").replaceAll("\\)", " ) ").trim().split("\\s+");
 		
 		for(String tok : toks) {
@@ -37,15 +37,15 @@ public class LavaMain {
 		return tokens;
 	}
 	
-	public static Object parseSexp(LinkedList<String> tokens) {
-		String token = tokens.removeFirst();
+	public static Object parseSexp(ArrayList<String> tokens) {
+		String token = tokens.remove(0);
 		
 		if(token.equals("(")) {
 			LavaList sexp = new LavaList();
 			while(!(tokens.get(0).equals(")"))) {
 				sexp.add(parseSexp(tokens));
 			}
-			tokens.removeFirst();
+			tokens.remove(0);
 			return sexp;
 		} else if(token.equals(")")) {
 			System.err.println("Unexpected )");
@@ -79,7 +79,7 @@ public class LavaMain {
 				System.err.printf("No.\n\t'%s' is not a symbol we can resolve.\n", exp);
 				return null;
 			}
-		} else if(!(exp instanceof LinkedList<?>)) {
+		} else if(!(exp instanceof ArrayList<?>)) {
 			return exp;
 		}else {
 			LavaList llexp = (LavaList)exp;
@@ -255,7 +255,7 @@ public class LavaMain {
 		
 		if(exp instanceof String) {
 			return e.find((String)exp).get(exp);
-		} else if(!(exp instanceof LinkedList<?>)) {
+		} else if(!(exp instanceof ArrayList<?>)) {
 			return exp;
 		}else {
 			LavaList llexp = (LavaList)exp;
