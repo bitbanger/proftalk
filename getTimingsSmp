@@ -1,0 +1,18 @@
+#! /bin/bash
+
+JAVA=java
+NUMTESTS=`echo {1..10}`
+CORES=`echo {1..8}`
+COMMAND=LavaMain
+INPUTFILE=fact
+OUTFILE=timings.csv
+
+rm -f $OUTFILE
+
+for c in $CORES; do
+	for i in $NUMTESTS; do
+		t=$($JAVA -Dpj.nt=$c $COMMAND < $INPUTFILE | grep msec | tail -n1 | sed 's/[^0-9]//g')
+		echo $t
+		echo "$c,$t" >> $OUTFILE
+	done
+done
