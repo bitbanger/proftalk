@@ -10,10 +10,8 @@ TAIL=/usr/xpg4/bin/tail
 
 rm -f $OUTFILE
 
-for c in $CORES; do
-	for i in $NUMTESTS; do
-		t=$($JAVA -Dpj.nt=$c $COMMAND < $INPUTFILE | grep msec | $TAIL -n 1 | sed 's/[^0-9]//g')
-		echo $t
-		echo "$c,$t" >> $OUTFILE
-	done
+for i in $NUMTESTS; do
+	t=$($JAVA $COMMAND < $INPUTFILE | grep msec | $TAIL -n 1 | sed 's/[^0-9]//g')
+	echo $t
+	echo "$c,$t" >> $OUTFILE
 done

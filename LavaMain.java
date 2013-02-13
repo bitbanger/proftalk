@@ -1,4 +1,5 @@
 import java.util.*;
+import edu.rit.pj.Comm;
 
 public class LavaMain {
 	public static Env global_env;
@@ -152,7 +153,9 @@ public class LavaMain {
 		return parseEval(sexp, global_env);
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
+		Comm.init(args);
+		
 		String[] vals = {
 				"+",
 				"-",
