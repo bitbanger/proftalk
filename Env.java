@@ -37,8 +37,6 @@ public class Env extends HashMap<String, Object> {
 		} else if(this.outer != null) {
 			return this.outer.find(val);
 		} else {
-			System.err.println("Environment failure!");
-			System.err.println("Couldn't find '" + val + "'");
 			return null;
 		}
 	}
