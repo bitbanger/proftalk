@@ -1,10 +1,16 @@
 import java.util.*;
 import edu.rit.pj.*;
+import edu.rit.mp.*;
+import edu.rit.util.*;
 
 public class LavaMain {
-	public static Env global_env;
+	static Env global_env;
 	
-	public static boolean debug = false;
+	static boolean debug = false;
+	
+	static Comm world;
+	static int size;
+	static int rank;
 	
 	public static Object runOp(Env e, String opName, Object... args) throws Exception {
 		Lambda op = (Lambda)e.get(opName);
@@ -161,17 +167,20 @@ public class LavaMain {
 				final Object[] theArgs = theList.toArray(new Object[theList.size()]);
 				final Object[] theResults = new Object[theArgs.length];
 				
-				new ParallelTeam().execute(new ParallelRegion() {
-					public void run() throws Exception {
-						execute(0, theArgs.length - 1, new IntegerForLoop() {
-							public void run(int first, int last) throws Exception {
-								for(int i = first; i <= last; ++i) {
-									theResults[i] = theFunc.exec(theArgs[i]);
-								}
-							}
-						});
-					}
-				});
+				Range[] ranges = new Range(0, theArgs.length - 1).subranges(size);
+				Range myRange = ranges[rank];
+				int mylb = myRange.lb();
+				int myub = myRange.ub();
+				
+				ObjectBuf<Object>[] allSlices = ObjectBuf.sliceBuffers(theResults, ranges);
+				
+				ObjectBuf<Object> mySlice = allSlices[rank];
+				
+				for(int i = mylb; i <= myub; ++i) {
+					theResults[i] = theFunc.exec(theArgs[i]);
+				}
+				
+				world.gather(0, mySlice, allSlices);
 				
 				LavaList returnList = new LavaList();
 				for(int i = 0; i < theResults.length; ++i) {
@@ -186,17 +195,20 @@ public class LavaMain {
 					parallelSexps[i - 1] = llexp.get(i);
 				}
 				
-				new ParallelTeam().execute(new ParallelRegion() {
-					public void run() throws Exception {
-						execute(0, parallelSexps.length - 1, new IntegerForLoop() {
-							public void run(int first, int last) throws Exception {
-								for(int i = first; i <= last; ++i) {
-									results[i] = eval(parallelSexps[i], myEnv);
-								}
-							}
-						});
-					}
-				});
+				Range[] ranges = new Range(0, parallelSexps.length - 1).subranges(size);
+				Range myRange = ranges[rank];
+				int mylb = myRange.lb();
+				int myub = myRange.ub();
+				
+				ObjectBuf<Object>[] allSlices = ObjectBuf.sliceBuffers(results, ranges);
+				
+				ObjectBuf<Object> mySlice = allSlices[rank];
+				
+				for(int i = mylb; i <= myub; ++i) {
+					results[i] = eval(parallelSexps[i], myEnv);
+				}
+				
+				world.gather(0, mySlice, allSlices);
 				
 				LavaList retList = new LavaList();
 				for(int i = 0; i < results.length; ++i) {
@@ -245,6 +257,10 @@ public class LavaMain {
 
 	public static void main(String[] args) throws Exception {
 		Comm.init(args);
+		
+		world = Comm.world();
+		size = world.size();
+		rank = world.rank();
 		
 		String[] vals = {
 				"+",
@@ -302,30 +318,36 @@ public class LavaMain {
 		Scanner scan = new Scanner(System.in);
 		
 		for(;;) {
-			System.out.print("proftalk~$ ");
-			String line = scan.nextLine();
-			if(line.equals("quit")) {
-				break;
+			char[] strArray = new char[1024]; // Probably too big, but we have no other option
+			if(rank == 0) {
+				System.out.print("proftalk~$ ");
+				char[] rootArr = scan.nextLine().toCharArray();
+				for(int i = 0; i < rootArr.length; ++i) strArray[i] = rootArr[i];
 			}
 			
-			Object sexp = parseSexp(tokenize(line));
+			CharacterBuf buf = CharacterBuf.sliceBuffer(strArray, new Range(0, 1023));
+			world.broadcast(0, buf);
+			
+			String line = new String(strArray);
 			
 			long time = -System.currentTimeMillis();
+			
+			Object sexp = parseSexp(tokenize(line));
 			
 			Object result = eval(sexp);
 			
 			time += System.currentTimeMillis();
 			
-			if(result != null) {
-				System.out.println(result);
-			}
-			
-			if(debug) {
-				System.out.println(time + " msec");
+			if(rank == 0) {
+				if(result != null) {
+					System.out.println(result);
+				}
+				
+				if(debug) {
+					System.out.println(time + " msec");
+				}
 			}
 		}
-		
-		scan.close();
 	}
 
 }
