@@ -6,9 +6,13 @@
 
 class Env {
 	private:
+		typedef std::map<const std::string, const PTObject*> store_t;
 		std::map<const std::string, const PTObject*> store;
+		Env *parent_env;
 	
 	public:
+		Env();
+		Env(Env *parent);
 		const PTObject* operator[] (const std::string& key) const;
 		void insert(const std::string& key, const PTObject* val);
 };
