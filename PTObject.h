@@ -1,9 +1,11 @@
 #ifndef PTOBJECT_H
 #define PTOBJECT_H
 
+class Env;
 class PTObject {
-	//not sure what this needs to do, exactly, yet
-	virtual PTObject* exec() = 0;
+	public:
+		//not sure what this needs to do, exactly, yet
+		virtual const PTObject* eval(const Env *env) const = 0;
 };
 
 #endif

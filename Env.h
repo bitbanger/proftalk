@@ -7,7 +7,7 @@
 class Env {
 	private:
 		typedef std::map<const std::string, const PTObject*> store_t;
-		std::map<const std::string, const PTObject*> store;
+		store_t store;
 		Env *parent_env;
 	
 	public:
